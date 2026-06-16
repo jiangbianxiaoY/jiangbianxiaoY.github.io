@@ -1,0 +1,1424 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="keywords" content="深度学习,遥感,PolSAR,计算机视觉,Hexo">
+    
+    <meta name="author" content="江边小余">
+    
+    <!-- Completely eliminate flash of wrong theme -->
+    <script>
+        (function() {
+            const THEME_KEY = "REDEFINE-THEME-STATUS";
+            const DARK = "dark", LIGHT = "light";
+            
+            // Get preferred theme
+            function getTheme() {
+                try {
+                    const saved = localStorage.getItem(THEME_KEY);
+                    if (saved) {
+                        const { isDark } = JSON.parse(saved);
+                        return isDark ? DARK : LIGHT;
+                    }
+                } catch (e) {}
+                
+                return matchMedia("(prefers-color-scheme: dark)").matches ? DARK : LIGHT;
+            }
+            
+            // Apply theme to document
+            function applyTheme(theme) {
+                const isDark = theme === DARK;
+                const root = document.documentElement;
+                
+                // Set data attribute for CSS variables
+                root.setAttribute("data-theme", theme);
+                
+                // Set classes for compatibility
+                root.classList.add(theme);
+                root.classList.remove(isDark ? LIGHT : DARK);
+                root.style.colorScheme = theme;
+            }
+            
+            // Initial application
+            const theme = getTheme();
+            applyTheme(theme);
+            
+            // Listen for system preference changes
+            matchMedia("(prefers-color-scheme: dark)").addEventListener("change", ({ matches }) => {
+                // Only update if using system preference (no localStorage entry)
+                if (!localStorage.getItem(THEME_KEY)) {
+                    applyTheme(matches ? DARK : LIGHT);
+                }
+            });
+            
+            // Set body classes once DOM is ready
+            if (document.readyState !== "loading") {
+                document.body.classList.add(theme + "-mode");
+            } else {
+                document.addEventListener("DOMContentLoaded", () => {
+                    document.body.classList.add(theme + "-mode");
+                    document.body.classList.remove((theme === DARK ? LIGHT : DARK) + "-mode");
+                });
+            }
+        })();
+    </script>
+    
+    <!-- Critical CSS to prevent flash -->
+    <style>
+        :root[data-theme="dark"] {
+            --background-color: #202124;
+            --background-color-transparent: rgba(32, 33, 36, 0.6);
+            --second-background-color: #2d2e32;
+            --third-background-color: #34353a;
+            --third-background-color-transparent: rgba(32, 33, 36, 0.6);
+            --primary-color: #0066CC;
+            --first-text-color: #ffffff;
+            --second-text-color: #eeeeee;
+            --third-text-color: #bebec6;
+            --fourth-text-color: #999999;
+            --default-text-color: #bebec6;
+            --invert-text-color: #373D3F;
+            --border-color: rgba(255, 255, 255, 0.08);
+            --selection-color: #0066CC;
+            --shadow-color-1: rgba(255, 255, 255, 0.08);
+            --shadow-color-2: rgba(255, 255, 255, 0.05);
+        }
+        
+        :root[data-theme="light"] {
+            --background-color: #fff;
+            --background-color-transparent: rgba(255, 255, 255, 0.6);
+            --second-background-color: #f8f8f8;
+            --third-background-color: #f2f2f2;
+            --third-background-color-transparent: rgba(241, 241, 241, 0.6);
+            --primary-color: #0066CC;
+            --first-text-color: #16171a;
+            --second-text-color: #2f3037;
+            --third-text-color: #5e5e5e;
+            --fourth-text-color: #eeeeee;
+            --default-text-color: #373D3F;
+            --invert-text-color: #bebec6;
+            --border-color: rgba(0, 0, 0, 0.08);
+            --selection-color: #0066CC;
+            --shadow-color-1: rgba(0, 0, 0, 0.08);
+            --shadow-color-2: rgba(0, 0, 0, 0.05);
+        }
+        
+        body {
+            background-color: var(--background-color);
+            color: var(--default-text-color);
+        }
+        
+        /* Apply body classes as soon as DOM is ready */
+        :root[data-theme="dark"] body {
+            background-color: var(--background-color);
+            color: var(--default-text-color);
+        }
+    </style>
+    
+    <!-- preconnect -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    
+    <!--- Seo Part-->
+    
+    <link rel="canonical" href="https://jiangbianxiaoy.github.io/2026/06/16/boostasio指南/"/>
+    <meta name="robots" content="index,follow">
+    <meta name="googlebot" content="index,follow">
+    <meta name="revisit-after" content="1 days">
+    
+    
+    
+        
+        <meta name="description" content="Hexo Theme Redefine, Redefine Your Hexo Journey.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Boost.Asio 1.83 使用指南">
+<meta property="og:url" content="https://jiangbianxiaoy.github.io/2026/06/16/BoostAsio%E6%8C%87%E5%8D%97/index.html">
+<meta property="og:site_name" content="XiaoY&#39;Blog">
+<meta property="og:description" content="Hexo Theme Redefine, Redefine Your Hexo Journey.">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://jiangbianxiaoy.github.io/images/redefine-og.webp">
+<meta property="article:published_time" content="2026-06-16T04:00:00.000Z">
+<meta property="article:modified_time" content="2026-06-16T04:00:00.000Z">
+<meta property="article:author" content="江边小余">
+<meta property="article:tag" content="Asio">
+<meta property="article:tag" content="Boost">
+<meta property="article:tag" content="C++">
+<meta property="article:tag" content="网络编程">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://jiangbianxiaoy.github.io/images/redefine-og.webp">
+    
+    
+    <!--- Icon Part-->
+    <link rel="icon" type="image/png" href="/images/blog_icon.svg" sizes="192x192">
+    <link rel="apple-touch-icon" sizes="180x180" href="/images/blog_icon.svg">
+    <meta name="theme-color" content="#A31F34">
+    <link rel="shortcut icon" href="/images/blog_icon.svg">
+    <!--- Page Info-->
+    
+    <title>
+        
+            Boost.Asio 1.83 使用指南 | XiaoY&#39;Blog
+        
+    </title>
+
+    
+<link rel="stylesheet" href="/fonts/Chillax/chillax.css">
+
+
+    <!--- Inject Part-->
+    
+        
+            
+    
+            
+    
+            
+                
+                    <script data-swup-reload-script>MathJax={tex:{inlineMath:[["$","$"],["\\(","\\)"]]},options:{skipHtmlTypes:"script"}};</script>
+                
+    
+            
+                
+                    <script data-swup-reload-script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
+                
+    
+            
+                
+                    <style>.markdown-body > table,.markdown-body .tab-pane > table{border-top:2px solid var(--default-text-color) !important;border-bottom:2px solid var(--default-text-color) !important}.markdown-body > table thead th,.markdown-body .tab-pane > table thead th{border-bottom:2px solid var(--default-text-color) !important}.markdown-body > table td,.markdown-body > table th{border-left:none !important}</style>
+                
+    
+
+    
+<link rel="stylesheet" href="/css/style.css">
+
+
+    
+        
+<link rel="stylesheet" href="/css/build/tailwind.css">
+
+    
+
+    
+<link rel="stylesheet" href="/fonts/GeistMono/geist-mono.css">
+
+    
+<link rel="stylesheet" href="/fonts/Geist/geist.css">
+
+    <!--- Font Part-->
+    
+    
+    
+        <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    
+        <link href="" rel="stylesheet">
+    
+    
+    
+        
+<script src="/js/build/libs/anime.min.js"></script>
+
+    
+
+    <script id="hexo-configurations">
+    window.config = {"hostname":"jiangbianxiaoy.github.io","root":"/","language":"zh-CN","path":"search.json"};
+    window.theme = {"articles":{"style":{"font_size":"16px","line_height":1.5,"image_border_radius":"14px","image_alignment":"center","image_caption":false,"link_icon":true,"delete_mask":false,"title_alignment":"left","headings_top_spacing":{"h1":"3.2rem","h2":"2.4rem","h3":"1.9rem","h4":"1.6rem","h5":"1.4rem","h6":"1.3rem"}},"word_count":{"enable":true,"count":true,"min2read":true},"author_label":{"enable":true,"auto":false,"list":[]},"code_block":{"copy":true,"style":"mac","highlight_theme":{"light":"github","dark":"vs2015"},"font":{"enable":false,"family":null,"url":null}},"toc":{"enable":true,"max_depth":3,"number":false,"expand":true,"init_open":true},"copyright":{"enable":false,"default":"cc_by_nc_sa"},"lazyload":false,"pangu_js":false,"recommendation":{"enable":false,"title":"推荐阅读","limit":3,"mobile_limit":2,"placeholder":"/images/wallhaven-wqery6-light.webp","skip_dirs":[]}},"colors":{"primary":"#A31F34","secondary":null,"default_mode":"light"},"global":{"fonts":{"chinese":{"enable":true,"family":"Noto Sans SC","url":"https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap"},"english":{"enable":true,"family":"Farsan","url":null},"title":{"enable":false,"family":null,"url":null}},"content_max_width":"1000px","sidebar_width":"210px","hover":{"shadow":true,"scale":true},"scroll_progress":{"bar":true,"percentage":true},"website_counter":{"url":"https://cn.vercount.one/js","enable":true,"site_pv":true,"site_uv":true,"post_pv":true},"single_page":true,"preloader":{"enable":true,"custom_message":null},"side_tools":{"gear_rotation":true,"auto_expand":false},"open_graph":{"enable":true,"image":"/images/redefine-og.webp","description":"Hexo Theme Redefine, Redefine Your Hexo Journey."},"google_analytics":{"enable":false,"id":null}},"home_banner":{"enable":true,"style":"fixed","image":{"light":"/images/homepage.jpeg","dark":"/images/homepage.jpeg"},"title":"welcome my Blog","subtitle":{"text":[],"hitokoto":{"enable":false,"show_author":false,"api":"https://v1.hitokoto.cn"},"typing_speed":100,"backing_speed":80,"starting_delay":500,"backing_delay":1500,"loop":true,"smart_backspace":true},"text_color":{"light":"#fff","dark":"#d1d1b6"},"text_style":{"title_size":"2.8rem","subtitle_size":"1.5rem","line_height":1.2},"custom_font":{"enable":false,"family":null,"url":null},"social_links":{"enable":false,"style":"default","links":{"github":null,"instagram":null,"zhihu":null,"twitter":null,"email":null},"qrs":{"weixin":null}}},"plugins":{"feed":{"enable":false},"aplayer":{"enable":false,"type":"fixed","audios":[{"name":null,"artist":null,"url":null,"cover":null,"lrc":null}]},"mermaid":{"enable":false,"version":"11.4.1"}},"version":"2.8.5","navbar":{"auto_hide":false,"color":{"left":"#ffffff","right":"#ffffff","transparency":35},"width":{"home":"1200px","pages":"1000px"},"links":{"Home":{"path":"/","icon":"fa-regular fa-house"},"文章":{"path":"/archives","icon":"fa-regular fa-archive"},"分类":{"icon":"fa-solid fa-folder","path":"/categories/"},"标签":{"icon":"fa-solid fa-tags","path":"/tags/"},"相册":{"icon":"fa-solid fa-image","path":"/masonry/"},"Links":{"icon":"fa-regular fa-link","submenus":{"GitHub":"https://github.com","Gitee":"https://gitee.com","Bilibili":"https://bilibili.com"}}},"search":{"enable":true,"preload":true}},"page_templates":{"friends_column":2,"tags_style":"blur"},"home":{"sidebar":{"enable":true,"position":"left","first_item":"menu","announcement":null,"show_on_mobile":true,"links":null},"article_date_format":"YYYY-MM-DD HH:mm:ss","excerpt_length":200,"categories":{"enable":true,"limit":3},"tags":{"enable":true,"limit":3}},"footerStart":"2025/10/13 23:14:11"};
+    window.lang_ago = {"second":"%s 秒前","minute":"%s 分钟前","hour":"%s 小时前","day":"%s 天前","week":"%s 周前","month":"%s 个月前","year":"%s 年前"};
+    window.data = {"masonry":true};
+  </script>
+    
+    <!--- Fontawesome Part-->
+    
+<link rel="stylesheet" href="/fontawesome/fontawesome.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/brands.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/solid.min.css">
+
+    
+<link rel="stylesheet" href="/fontawesome/regular.min.css">
+
+    
+        
+<link rel="stylesheet" href="/fontawesome/thin.min.css">
+
+    
+    
+        
+<link rel="stylesheet" href="/fontawesome/light.min.css">
+
+    
+    
+        
+<link rel="stylesheet" href="/fontawesome/duotone.min.css">
+
+    
+    
+        
+<link rel="stylesheet" href="/fontawesome/sharp-solid.min.css">
+
+    
+<meta name="generator" content="Hexo 8.1.2"></head>
+
+
+
+<body>
+	<div class="progress-bar-container">
+	
+	<span class="scroll-progress-bar"></span>
+	
+
+	
+	<span class="pjax-progress-bar"></span>
+	<!--        <span class="swup-progress-icon">-->
+	<!--            <i class="fa-solid fa-circle-notch fa-spin"></i>-->
+	<!--        </span>-->
+	
+</div>
+
+<style>
+    :root {
+        --preloader-background-color: #fff;
+        --preloader-text-color: #000;
+    }
+
+    @media (prefers-color-scheme: dark) {
+        :root {
+            --preloader-background-color: #202124;
+            --preloader-text-color: #fff;
+        }
+    }
+
+    @media (prefers-color-scheme: light) {
+        :root {
+            --preloader-background-color: #fff;
+            --preloader-text-color: #000;
+        }
+    }
+
+    @media (max-width: 600px) {
+        .ml13 {
+            font-size: 2.6rem !important; /* Adjust this value as needed */
+        }
+    }
+
+    .preloader {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem; /* Tailwind 'gap-4' is 1rem */
+        align-items: center;
+        justify-content: center;
+        position: fixed;
+        padding: 12px;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh; /* 'h-screen' is 100% of the viewport height */
+        background-color: var(--preloader-background-color);
+        z-index: 1100; /* 'z-[1100]' sets the z-index */
+        transition: opacity 0.2s ease-in-out;
+    }
+
+    .ml13 {
+        font-size: 3.2rem;
+        /* text-transform: uppercase; */
+        color: var(--preloader-text-color);
+        letter-spacing: -1px;
+        font-weight: 500;
+        font-family: 'Chillax-Variable', sans-serif;
+        text-align: center;
+    }
+
+    .ml13 .word {
+        display: inline-flex;
+        flex-wrap: wrap;
+        white-space: nowrap;
+    }
+
+    .ml13 .letter {
+        display: inline-block;
+        line-height: 1em;
+    }
+</style>
+
+<div class="preloader">
+    <h2 class="ml13">
+        XiaoY&#39;Blog
+    </h2>
+    <script>
+        var textWrapper = document.querySelector('.ml13');
+        // Split text into words
+        var words = textWrapper.textContent.trim().split(' ');
+
+        // Clear the existing content
+        textWrapper.innerHTML = '';
+
+        // Wrap each word and its letters in spans
+        words.forEach(function(word) {
+            var wordSpan = document.createElement('span');
+            wordSpan.classList.add('word');
+            wordSpan.innerHTML = word.replace(/\S/g, "<span class='letter'>$&</span>");
+            textWrapper.appendChild(wordSpan);
+            textWrapper.appendChild(document.createTextNode(' ')); // Add space between words
+        });
+
+        var animation = anime.timeline({ loop: true })
+            .add({
+                targets: '.ml13 .letter',
+                translateY: [20, 0],
+                translateZ: 0,
+                opacity: [0, 1],
+                filter: ['blur(5px)', 'blur(0px)'],
+                easing: "easeOutExpo",
+                duration: 1200,
+                delay: (el, i) => 300 + 20 * i,
+            })
+            .add({
+                targets: '.ml13 .letter',
+                translateY: [0, -20],
+                opacity: [1, 0],
+                filter: ['blur(0px)', 'blur(5px)'],
+                easing: "easeInExpo",
+                duration: 1000,
+                delay: (el, i) => 15 * i,
+                complete: function() {
+                    hidePreloader();
+                }
+            }, '-=700');
+
+
+        let themeStatus = JSON.parse(localStorage.getItem('REDEFINE-THEME-STATUS'))?.isDark;
+
+        // If the theme status is not found in local storage, check the preferred color scheme
+        if (themeStatus === undefined || themeStatus === null) {
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                themeStatus = 'dark';
+            } else {
+                themeStatus = 'light';
+            }
+        }
+
+        // Now you can use the themeStatus variable in your code
+        if (themeStatus) {
+            document.documentElement.style.setProperty('--preloader-background-color', '#202124');
+            document.documentElement.style.setProperty('--preloader-text-color', '#fff');
+        } else {
+            document.documentElement.style.setProperty('--preloader-background-color', '#fff');
+            document.documentElement.style.setProperty('--preloader-text-color', '#000');
+        }
+
+        window.addEventListener('load', function () {
+            setTimeout(hidePreloader, 5000); // Call hidePreloader after 5000 milliseconds if not already called by animation
+        });
+
+        function hidePreloader() {
+            var preloader = document.querySelector('.preloader');
+            preloader.style.opacity = '0';
+            setTimeout(function () {
+                preloader.style.display = 'none';
+            }, 200);
+        }
+    </script>
+</div>
+
+<main class="page-container" id="swup">
+
+	
+
+	<div class="main-content-container flex flex-col justify-between min-h-dvh">
+		<div class="main-content-header">
+			<header class="navbar-container px-6 md:px-12">
+    <div class="navbar-content transition-navbar ">
+        <div class="left">
+            
+            <a class="logo-title" href="/">
+                
+                XiaoY&#39;Blog
+                
+            </a>
+        </div>
+
+        <div class="right">
+            <!-- PC -->
+            <div class="desktop">
+                <ul class="navbar-list">
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/"
+                                        >
+                                    <i class="fa-regular fa-house fa-fw"></i>
+                                    首页
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/archives"
+                                        >
+                                    <i class="fa-regular fa-archive fa-fw"></i>
+                                    文章
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/categories/"
+                                        >
+                                    <i class="fa-solid fa-folder fa-fw"></i>
+                                    分类
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/tags/"
+                                        >
+                                    <i class="fa-solid fa-tags fa-fw"></i>
+                                    标签
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class=""
+                                   href="/masonry/"
+                                        >
+                                    <i class="fa-solid fa-image fa-fw"></i>
+                                    相册
+                                    
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                            </li>
+                    
+                        
+                            
+
+                            <li class="navbar-item">
+                                <!-- Menu -->
+                                <a class="has-dropdown"
+                                   href="#"
+                                        onClick=&#34;return false;&#34;>
+                                    <i class="fa-regular fa-link fa-fw"></i>
+                                    链接
+                                    <i class="fa-solid fa-chevron-down fa-fw"></i>
+                                </a>
+
+                                <!-- Submenu -->
+                                
+                                    <ul class="sub-menu">
+                                        
+                                            <li>
+                                                <a target="_blank" rel="noopener" href="https://github.com">
+                                                    GITHUB
+                                                </a>
+                                            </li>
+                                        
+                                            <li>
+                                                <a target="_blank" rel="noopener" href="https://gitee.com">
+                                                    GITEE
+                                                </a>
+                                            </li>
+                                        
+                                            <li>
+                                                <a target="_blank" rel="noopener" href="https://bilibili.com">
+                                                    BILIBILI
+                                                </a>
+                                            </li>
+                                        
+                                    </ul>
+                                
+                            </li>
+                    
+                    
+                        <li class="navbar-item search search-popup-trigger">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                        </li>
+                    
+                </ul>
+            </div>
+            <!-- Mobile -->
+            <div class="mobile">
+                
+                    <div class="icon-item search search-popup-trigger"><i class="fa-solid fa-magnifying-glass"></i>
+                    </div>
+                
+                <div class="icon-item navbar-bar">
+                    <div class="navbar-bar-middle"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile sheet -->
+    <div class="navbar-drawer h-dvh w-full absolute top-0 left-0 bg-background-color flex flex-col justify-between">
+        <ul class="drawer-navbar-list flex flex-col px-4 justify-center items-start">
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/"
+                        >
+                            <span>
+                                首页
+                            </span>
+                            
+                                <i class="fa-regular fa-house fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/archives"
+                        >
+                            <span>
+                                文章
+                            </span>
+                            
+                                <i class="fa-regular fa-archive fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/categories/"
+                        >
+                            <span>
+                                分类
+                            </span>
+                            
+                                <i class="fa-solid fa-folder fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/tags/"
+                        >
+                            <span>
+                                标签
+                            </span>
+                            
+                                <i class="fa-solid fa-tags fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+                
+                    
+
+                    <li class="drawer-navbar-item text-base my-1.5 flex flex-col w-full">
+                        
+                        <a class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                           href="/masonry/"
+                        >
+                            <span>
+                                相册
+                            </span>
+                            
+                                <i class="fa-solid fa-image fa-sm fa-fw"></i>
+                            
+                        </a>
+                        
+
+                        
+                    </li>
+            
+                
+                    
+
+                    <li class="drawer-navbar-item-sub text-base my-1.5 flex flex-col w-full">
+                        
+                        <div class="py-1.5 px-2 flex flex-row items-center justify-between gap-1 hover:!text-primary active:!text-primary cursor-pointer text-2xl font-semibold group border-b border-border-color hover:border-primary w-full "
+                             navbar-data-toggle="submenu-Links"
+                        >
+                            <span>
+                                链接
+                            </span>
+                            
+                                <i class="fa-solid fa-chevron-right fa-sm fa-fw transition-all"></i>
+                            
+                        </div>
+                        
+
+                        
+                            <div class="flex-col items-start px-2 py-2 hidden" data-target="submenu-Links">
+                                
+                                    <div class="drawer-navbar-item text-base flex flex-col justify-center items-start hover:underline active:underline hover:underline-offset-1 rounded-3xl">
+                                        <a class=" text-third-text-color text-xl"
+                                           target="_blank" rel="noopener" href="https://github.com">GITHUB</a>
+                                    </div>
+                                
+                                    <div class="drawer-navbar-item text-base flex flex-col justify-center items-start hover:underline active:underline hover:underline-offset-1 rounded-3xl">
+                                        <a class=" text-third-text-color text-xl"
+                                           target="_blank" rel="noopener" href="https://gitee.com">GITEE</a>
+                                    </div>
+                                
+                                    <div class="drawer-navbar-item text-base flex flex-col justify-center items-start hover:underline active:underline hover:underline-offset-1 rounded-3xl">
+                                        <a class=" text-third-text-color text-xl"
+                                           target="_blank" rel="noopener" href="https://bilibili.com">BILIBILI</a>
+                                    </div>
+                                
+                            </div>
+                        
+                    </li>
+            
+
+            
+            
+        </ul>
+
+        <div class="statistics flex justify-around my-2.5">
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/tags">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">16</div>
+        <div class="label text-third-text-color text-sm">标签</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/categories">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">5</div>
+        <div class="label text-third-text-color text-sm">分类</div>
+    </a>
+    <a class="item tag-count-item flex flex-col justify-center items-center w-20" href="/archives">
+        <div class="number text-2xl sm:text-xl text-second-text-color font-semibold">4</div>
+        <div class="label text-third-text-color text-sm">文章</div>
+    </a>
+</div>
+    </div>
+
+    <div class="window-mask"></div>
+
+</header>
+
+
+		</div>
+
+		<div class="main-content-body transition-fade-up">
+			
+
+			<div class="main-content">
+				<div class="post-page-container flex relative justify-between box-border w-full h-full">
+	<div class="article-content-container">
+
+		<div class="article-title relative w-full">
+			
+			<div class="w-full flex items-center pt-6 justify-start">
+				<h1 class="article-title-regular text-second-text-color tracking-tight text-4xl md:text-6xl font-semibold px-2 sm:px-6 md:px-8 py-3">Boost.Asio 1.83 使用指南</h1>
+			</div>
+			
+		</div>
+
+		
+		<div class="article-header flex flex-row gap-2 items-center px-2 sm:px-6 md:px-8">
+			<div class="avatar w-[46px] h-[46px] flex-shrink-0 rounded-medium border border-border-color p-[1px]">
+				<img src="/images/head.jpg">
+			</div>
+			<div class="info flex flex-col justify-between">
+				<div class="author flex items-center">
+					<span class="name text-default-text-color text-lg font-semibold">江边小余</span>
+					
+					<span class="author-label ml-1.5 text-xs px-2 py-0.5 rounded-small text-third-text-color border border-shadow-color-1">Lv1</span>
+					
+				</div>
+				<div class="meta-info">
+					<div class="article-meta-info">
+    <span class="article-date article-meta-item">
+        <i class="fa-regular fa-pen-fancy"></i>&nbsp;
+        <span class="desktop">2026-06-16 12:00</span>
+        <span class="mobile">2026-06-16 12:00</span>
+        <span class="hover-info">创建</span>
+    </span>
+    
+        <span class="article-date article-meta-item">
+            <i class="fa-regular fa-wrench"></i>&nbsp;
+            <span class="desktop">2026-06-16 12:00</span>
+            <span class="mobile">2026-06-16 12:00</span>
+            <span class="hover-info">更新</span>
+        </span>
+    
+
+    
+        <span class="article-categories article-meta-item">
+            <i class="fa-regular fa-folders"></i>&nbsp;
+            <ul>
+                
+                
+                    
+                        
+                        <li>
+                            <a href="/categories/C/">C++</a>&nbsp;
+                        </li>
+                    
+                    
+                
+            </ul>
+        </span>
+    
+    
+        <span class="article-tags article-meta-item">
+            <i class="fa-regular fa-tags"></i>&nbsp;
+            <ul>
+                
+                    <li>
+                        <a href="/tags/Boost/">Boost</a>&nbsp;
+                    </li>
+                
+                    <li>
+                        | <a href="/tags/Asio/">Asio</a>&nbsp;
+                    </li>
+                
+                    <li>
+                        | <a href="/tags/%E7%BD%91%E7%BB%9C%E7%BC%96%E7%A8%8B/">网络编程</a>&nbsp;
+                    </li>
+                
+                    <li>
+                        | <a href="/tags/C/">C++</a>&nbsp;
+                    </li>
+                
+            </ul>
+        </span>
+    
+
+    
+    
+        <span class="article-wordcount article-meta-item">
+            <i class="fa-regular fa-typewriter"></i>&nbsp;<span>1.8k 字</span>
+        </span>
+    
+    
+        <span class="article-min2read article-meta-item">
+            <i class="fa-regular fa-clock"></i>&nbsp;<span>9 分钟</span>
+        </span>
+    
+    
+        <span class="article-pv article-meta-item">
+            <i class="fa-regular fa-eye"></i>&nbsp;<span id="busuanzi_value_page_pv"></span>
+        </span>
+    
+</div>
+
+				</div>
+			</div>
+		</div>
+		
+
+		
+
+
+		<div class="article-content markdown-body px-2 sm:px-6 md:px-8 pb-8">
+			<h2 id="一、Boost-Asio-简介">一、Boost.Asio 简介</h2>
+<p>Boost.Asio 是一个跨平台的 C++ 异步 I/O 库，提供了网络编程、文件 I/O、定时器等功能。Boost 1.83 于 2023 年发布，带来了 C++20 协程支持、IOCP 改进等新特性。</p>
+<h3 id="1-1-核心概念">1.1 核心概念</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">概念</th>
+<th style="text-align:left">说明</th>
+<th style="text-align:left">头文件</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">io_context</td>
+<td style="text-align:left">事件循环核心</td>
+<td style="text-align:left"><code>boost/asio.hpp</code></td>
+</tr>
+<tr>
+<td style="text-align:left">executor</td>
+<td style="text-align:left">执行器（C++20 协程）</td>
+<td style="text-align:left"><code>boost/asio/executor.hpp</code></td>
+</tr>
+<tr>
+<td style="text-align:left">timer</td>
+<td style="text-align:left">定时器</td>
+<td style="text-align:left"><code>boost/asio/steady_timer.hpp</code></td>
+</tr>
+<tr>
+<td style="text-align:left">socket</td>
+<td style="text-align:left">套接字</td>
+<td style="text-align:left"><code>boost/asio/ip/tcp.hpp</code></td>
+</tr>
+<tr>
+<td style="text-align:left">strand</td>
+<td style="text-align:left">串行化执行</td>
+<td style="text-align:left"><code>boost/asio/strand.hpp</code></td>
+</tr>
+<tr>
+<td style="text-align:left">coroutine</td>
+<td style="text-align:left">C++20 协程支持</td>
+<td style="text-align:left"><code>boost/asio/co_spawn.hpp</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="1-2-编译要求">1.2 编译要求</h3>
+<div class="code-container" data-rel="Cmake"><figure class="iseeu highlight cmake"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">cmake_minimum_required</span>(VERSION <span class="number">3.20</span>)</span><br><span class="line"><span class="keyword">project</span>(asio_example)</span><br><span class="line"></span><br><span class="line"><span class="keyword">set</span>(CMAKE_CXX_STANDARD <span class="number">20</span>)</span><br><span class="line"><span class="keyword">find_package</span>(Boost <span class="number">1.83</span> REQUIRED COMPONENTS asio)</span><br><span class="line"></span><br><span class="line"><span class="keyword">add_executable</span>(demo main.cpp)</span><br><span class="line"><span class="keyword">target_link_libraries</span>(demo Boost::asio)</span><br></pre></td></tr></table></figure></div>
+<blockquote>
+<p><strong>注意</strong>：Boost.Asio 是 header-only 库，但依赖 <code>boost_system</code> 和 <code>boost_date_time</code>。从 1.83 开始，大多数组件无需链接额外库。</p>
+</blockquote>
+<h2 id="二、io-context-与事件循环">二、io_context 与事件循环</h2>
+<p><code>io_context</code> 是所有异步操作的核心调度器。</p>
+<h3 id="2-1-基本用法">2.1 基本用法</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;boost/asio.hpp&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;iostream&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="keyword">namespace</span> asio = boost::asio;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    asio::io_context ctx;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 投递任务</span></span><br><span class="line">    asio::<span class="built_in">post</span>(ctx, [] &#123;</span><br><span class="line">        std::cout &lt;&lt; <span class="string">&quot;Hello from io_context!\n&quot;</span>;</span><br><span class="line">    &#125;);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 运行事件循环</span></span><br><span class="line">    ctx.<span class="built_in">run</span>();</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
+<h3 id="2-2-run-与-poll">2.2 run() 与 poll()</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">方法</th>
+<th style="text-align:left">行为</th>
+<th style="text-align:left">阻塞?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>run()</code></td>
+<td style="text-align:left">直到所有工作完成才返回</td>
+<td style="text-align:left">是</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>poll()</code></td>
+<td style="text-align:left">执行就绪 handlers 后立即返回</td>
+<td style="text-align:left">否</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>run_one()</code></td>
+<td style="text-align:left">执行一个 handler 后返回</td>
+<td style="text-align:left">是</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>poll_one()</code></td>
+<td style="text-align:left">执行一个就绪 handler 后返回</td>
+<td style="text-align:left">否</td>
+</tr>
+</tbody>
+</table>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">asio::io_context ctx;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 使用 work guard 阻止 run() 退出</span></span><br><span class="line"><span class="keyword">auto</span> work = asio::<span class="built_in">require</span>(ctx.<span class="built_in">get_executor</span>(),</span><br><span class="line">    asio::execution::outstanding_work.tracked);</span><br><span class="line"></span><br><span class="line"><span class="function">std::thread <span class="title">t</span><span class="params">([&amp;ctx] &#123; ctx.run(); &#125;)</span></span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 主线程做其他事情</span></span><br><span class="line">std::this_thread::<span class="built_in">sleep_for</span>(std::chrono::<span class="built_in">seconds</span>(<span class="number">1</span>));</span><br><span class="line"></span><br><span class="line"><span class="comment">// 释放 work guard，让 run() 退出</span></span><br><span class="line">work = asio::<span class="built_in">prefer</span>(asio::<span class="built_in">default_executor</span>(),</span><br><span class="line">    asio::execution::outstanding_work.untracked);</span><br><span class="line">t.<span class="built_in">join</span>();</span><br></pre></td></tr></table></figure></div>
+<h2 id="三、定时器">三、定时器</h2>
+<h3 id="3-1-同步定时器">3.1 同步定时器</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">asio::io_context ctx;</span><br><span class="line"><span class="function">asio::steady_timer <span class="title">timer</span><span class="params">(ctx, std::chrono::seconds(<span class="number">3</span>))</span></span>;</span><br><span class="line"></span><br><span class="line">std::cout &lt;&lt; <span class="string">&quot;等待 3 秒...\n&quot;</span>;</span><br><span class="line">timer.<span class="built_in">wait</span>(); <span class="comment">// 阻塞等待</span></span><br><span class="line">std::cout &lt;&lt; <span class="string">&quot;时间到！\n&quot;</span>;</span><br></pre></td></tr></table></figure></div>
+<h3 id="3-2-异步定时器">3.2 异步定时器</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">void</span> <span class="title">on_timeout</span><span class="params">(asio::steady_timer&amp; t, <span class="type">const</span> std::error_code&amp; ec)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (!ec) &#123;</span><br><span class="line">        std::cout &lt;&lt; <span class="string">&quot;定时器触发\n&quot;</span>;</span><br><span class="line">        <span class="comment">// 重新设置，实现周期性</span></span><br><span class="line">        t.<span class="built_in">expires_at</span>(t.<span class="built_in">expiry</span>() + std::chrono::<span class="built_in">seconds</span>(<span class="number">1</span>));</span><br><span class="line">        t.<span class="built_in">async_wait</span>([&amp;t](<span class="keyword">auto</span> ec) &#123; <span class="built_in">on_timeout</span>(t, ec); &#125;);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">asio::io_context ctx;</span><br><span class="line"><span class="function">asio::steady_timer <span class="title">timer</span><span class="params">(ctx, std::chrono::seconds(<span class="number">1</span>))</span></span>;</span><br><span class="line">timer.<span class="built_in">async_wait</span>([&amp;timer](<span class="keyword">auto</span> ec) &#123; <span class="built_in">on_timeout</span>(timer, ec); &#125;);</span><br><span class="line">ctx.<span class="built_in">run</span>();</span><br></pre></td></tr></table></figure></div>
+<h3 id="3-3-C-20-协程定时器">3.3 C++20 协程定时器</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;boost/asio/experimental/awaitable_operators.hpp&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;boost/asio/co_spawn.hpp&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;boost/asio/detached.hpp&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="keyword">using</span> <span class="keyword">namespace</span> boost::asio::experimental::awaitable_operators;</span><br><span class="line"></span><br><span class="line"><span class="function">asio::awaitable&lt;<span class="type">void</span>&gt; <span class="title">timer_coroutine</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="function">asio::steady_timer <span class="title">timer</span><span class="params">(<span class="keyword">co_await</span> asio::this_coro::executor)</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; <span class="number">5</span>; ++i) &#123;</span><br><span class="line">        timer.<span class="built_in">expires_after</span>(std::chrono::<span class="built_in">seconds</span>(<span class="number">1</span>));</span><br><span class="line">        <span class="keyword">co_await</span> timer.<span class="built_in">async_wait</span>(asio::use_awaitable);</span><br><span class="line">        std::cout &lt;&lt; <span class="string">&quot;tick &quot;</span> &lt;&lt; i + <span class="number">1</span> &lt;&lt; <span class="string">&quot;\n&quot;</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    asio::io_context ctx;</span><br><span class="line">    asio::<span class="built_in">co_spawn</span>(ctx, <span class="built_in">timer_coroutine</span>(), asio::detached);</span><br><span class="line">    ctx.<span class="built_in">run</span>();</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
+<h2 id="四、TCP-网络编程">四、TCP 网络编程</h2>
+<h3 id="4-1-TCP-服务端">4.1 TCP 服务端</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;boost/asio.hpp&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;memory&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="keyword">namespace</span> asio = boost::asio;</span><br><span class="line"><span class="keyword">using</span> tcp = asio::ip::tcp;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">Session</span> : <span class="keyword">public</span> std::enable_shared_from_this&lt;Session&gt; &#123;</span><br><span class="line">    tcp::socket socket_;</span><br><span class="line">    std::array&lt;<span class="type">char</span>, 1024&gt; data_;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="built_in">Session</span>(tcp::socket socket) : <span class="built_in">socket_</span>(std::<span class="built_in">move</span>(socket)) &#123;&#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="type">void</span> <span class="title">start</span><span class="params">()</span> </span>&#123; <span class="built_in">do_read</span>(); &#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">private</span>:</span><br><span class="line">    <span class="function"><span class="type">void</span> <span class="title">do_read</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">auto</span> self = <span class="built_in">shared_from_this</span>();</span><br><span class="line">        socket_.<span class="built_in">async_read_some</span>(asio::<span class="built_in">buffer</span>(data_),</span><br><span class="line">            [<span class="keyword">this</span>, self](std::error_code ec, <span class="type">size_t</span> len) &#123;</span><br><span class="line">                <span class="keyword">if</span> (!ec) &#123;</span><br><span class="line">                    std::cout &lt;&lt; <span class="string">&quot;收到: &quot;</span></span><br><span class="line">                              &lt;&lt; std::<span class="built_in">string</span>(data_.<span class="built_in">data</span>(), len) &lt;&lt; <span class="string">&quot;\n&quot;</span>;</span><br><span class="line">                    <span class="built_in">do_write</span>(len);</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="type">void</span> <span class="title">do_write</span><span class="params">(<span class="type">size_t</span> len)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">auto</span> self = <span class="built_in">shared_from_this</span>();</span><br><span class="line">        asio::<span class="built_in">async_write</span>(socket_, asio::<span class="built_in">buffer</span>(data_, len),</span><br><span class="line">            [<span class="keyword">this</span>, self](std::error_code ec, <span class="type">size_t</span>) &#123;</span><br><span class="line">                <span class="keyword">if</span> (!ec) <span class="built_in">do_read</span>();</span><br><span class="line">            &#125;);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">Server</span> &#123;</span><br><span class="line">    tcp::acceptor acceptor_;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="built_in">Server</span>(asio::io_context&amp; ctx, <span class="type">uint16_t</span> port)</span><br><span class="line">        : <span class="built_in">acceptor_</span>(ctx, tcp::<span class="built_in">endpoint</span>(tcp::<span class="built_in">v4</span>(), port)) &#123;</span><br><span class="line">        <span class="built_in">do_accept</span>();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">private</span>:</span><br><span class="line">    <span class="function"><span class="type">void</span> <span class="title">do_accept</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        acceptor_.<span class="built_in">async_accept</span>(</span><br><span class="line">            [<span class="keyword">this</span>](std::error_code ec, tcp::socket socket) &#123;</span><br><span class="line">                <span class="keyword">if</span> (!ec) &#123;</span><br><span class="line">                    std::<span class="built_in">make_shared</span>&lt;Session&gt;(std::<span class="built_in">move</span>(socket))-&gt;<span class="built_in">start</span>();</span><br><span class="line">                &#125;</span><br><span class="line">                <span class="built_in">do_accept</span>();</span><br><span class="line">            &#125;);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    asio::io_context ctx;</span><br><span class="line">    <span class="function">Server <span class="title">server</span><span class="params">(ctx, <span class="number">8080</span>)</span></span>;</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;服务器启动于 8080 端口\n&quot;</span>;</span><br><span class="line">    ctx.<span class="built_in">run</span>();</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
+<h3 id="4-2-TCP-客户端">4.2 TCP 客户端</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">asio::awaitable&lt;<span class="type">void</span>&gt; <span class="title">tcp_client</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">auto</span> executor = <span class="keyword">co_await</span> asio::this_coro::executor;</span><br><span class="line">    <span class="function">tcp::socket <span class="title">socket</span><span class="params">(executor)</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="keyword">co_await</span> socket.<span class="built_in">async_connect</span>(</span><br><span class="line">            tcp::<span class="built_in">endpoint</span>(asio::ip::<span class="built_in">make_address</span>(<span class="string">&quot;127.0.0.1&quot;</span>), <span class="number">8080</span>),</span><br><span class="line">            asio::use_awaitable);</span><br><span class="line"></span><br><span class="line">        std::string msg = <span class="string">&quot;Hello, Asio!&quot;</span>;</span><br><span class="line">        <span class="function"><span class="keyword">co_await</span> <span class="title">asio::async_write</span><span class="params">(socket,</span></span></span><br><span class="line"><span class="params"><span class="function">            asio::buffer(msg), asio::use_awaitable)</span></span>;</span><br><span class="line"></span><br><span class="line">        std::array&lt;<span class="type">char</span>, 1024&gt; reply;</span><br><span class="line">        <span class="keyword">auto</span> len = <span class="keyword">co_await</span> socket.<span class="built_in">async_read_some</span>(</span><br><span class="line">            asio::<span class="built_in">buffer</span>(reply), asio::use_awaitable);</span><br><span class="line">        std::cout &lt;&lt; <span class="string">&quot;回复: &quot;</span></span><br><span class="line">                  &lt;&lt; std::<span class="built_in">string</span>(reply.<span class="built_in">data</span>(), len) &lt;&lt; <span class="string">&quot;\n&quot;</span>;</span><br><span class="line"></span><br><span class="line">    &#125; <span class="built_in">catch</span> (<span class="type">const</span> std::exception&amp; e) &#123;</span><br><span class="line">        std::cerr &lt;&lt; <span class="string">&quot;错误: &quot;</span> &lt;&lt; e.<span class="built_in">what</span>() &lt;&lt; <span class="string">&quot;\n&quot;</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    asio::io_context ctx;</span><br><span class="line">    asio::<span class="built_in">co_spawn</span>(ctx, <span class="built_in">tcp_client</span>(), asio::detached);</span><br><span class="line">    ctx.<span class="built_in">run</span>();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
+<h2 id="五、UDP-编程">五、UDP 编程</h2>
+<h3 id="5-1-UDP-服务端">5.1 UDP 服务端</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">using</span> udp = asio::ip::udp;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">UdpServer</span> &#123;</span><br><span class="line">    udp::socket socket_;</span><br><span class="line">    udp::endpoint remote_;</span><br><span class="line">    std::array&lt;<span class="type">char</span>, 65536&gt; data_;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="built_in">UdpServer</span>(asio::io_context&amp; ctx, <span class="type">uint16_t</span> port)</span><br><span class="line">        : <span class="built_in">socket_</span>(ctx, udp::<span class="built_in">endpoint</span>(udp::<span class="built_in">v4</span>(), port)) &#123;</span><br><span class="line">        <span class="built_in">do_receive</span>();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">private</span>:</span><br><span class="line">    <span class="function"><span class="type">void</span> <span class="title">do_receive</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        socket_.<span class="built_in">async_receive_from</span>(</span><br><span class="line">            asio::<span class="built_in">buffer</span>(data_), remote_,</span><br><span class="line">            [<span class="keyword">this</span>](std::error_code ec, <span class="type">size_t</span> len) &#123;</span><br><span class="line">                <span class="keyword">if</span> (!ec) &#123;</span><br><span class="line">                    std::cout &lt;&lt; <span class="string">&quot;来自 &quot;</span> &lt;&lt; remote_</span><br><span class="line">                              &lt;&lt; <span class="string">&quot;: &quot;</span> &lt;&lt; std::<span class="built_in">string</span>(data_.<span class="built_in">data</span>(), len) &lt;&lt; <span class="string">&quot;\n&quot;</span>;</span><br><span class="line">                    <span class="built_in">do_send</span>(len);</span><br><span class="line">                &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                    <span class="built_in">do_receive</span>();</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="type">void</span> <span class="title">do_send</span><span class="params">(<span class="type">size_t</span> len)</span> </span>&#123;</span><br><span class="line">        socket_.<span class="built_in">async_send_to</span>(</span><br><span class="line">            asio::<span class="built_in">buffer</span>(data_, len), remote_,</span><br><span class="line">            [<span class="keyword">this</span>](std::error_code, <span class="type">size_t</span>) &#123;</span><br><span class="line">                <span class="built_in">do_receive</span>();</span><br><span class="line">            &#125;);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure></div>
+<h2 id="六、高级特性">六、高级特性</h2>
+<h3 id="6-1-Strand-串行化">6.1 Strand 串行化</h3>
+<p>Strand 用于在多线程环境中保证 handlers 不并发执行：</p>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">asio::io_context ctx;</span><br><span class="line"><span class="keyword">auto</span> strand = asio::<span class="built_in">make_strand</span>(ctx);</span><br><span class="line"></span><br><span class="line"><span class="type">int</span> shared_data = <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 这些任务会串行执行</span></span><br><span class="line">asio::<span class="built_in">post</span>(strand, [&amp;] &#123; ++shared_data; &#125;);</span><br><span class="line">asio::<span class="built_in">post</span>(strand, [&amp;] &#123; ++shared_data; &#125;);</span><br><span class="line">asio::<span class="built_in">post</span>(strand, [&amp;] &#123; ++shared_data; &#125;);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 多线程运行</span></span><br><span class="line">std::vector&lt;std::thread&gt; threads;</span><br><span class="line"><span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; <span class="number">4</span>; ++i)</span><br><span class="line">    threads.<span class="built_in">emplace_back</span>([&amp;ctx] &#123; ctx.<span class="built_in">run</span>(); &#125;);</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> (<span class="keyword">auto</span>&amp; t : threads) t.<span class="built_in">join</span>();</span><br><span class="line">std::cout &lt;&lt; <span class="string">&quot;结果: &quot;</span> &lt;&lt; shared_data &lt;&lt; <span class="string">&quot;\n&quot;</span>; <span class="comment">// 3</span></span><br></pre></td></tr></table></figure></div>
+<h3 id="6-2-协程超时">6.2 协程超时</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">asio::awaitable&lt;<span class="type">void</span>&gt; <span class="title">with_timeout</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">auto</span> executor = <span class="keyword">co_await</span> asio::this_coro::executor;</span><br><span class="line">    <span class="function">asio::steady_timer <span class="title">timer</span><span class="params">(executor)</span></span>;</span><br><span class="line">    timer.<span class="built_in">expires_after</span>(std::chrono::<span class="built_in">seconds</span>(<span class="number">5</span>));</span><br><span class="line"></span><br><span class="line">    <span class="function">tcp::socket <span class="title">socket</span><span class="params">(executor)</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="comment">// 异步连接，5 秒超时</span></span><br><span class="line">        <span class="built_in">co_await</span> (</span><br><span class="line">            socket.<span class="built_in">async_connect</span>(</span><br><span class="line">                tcp::<span class="built_in">endpoint</span>(asio::ip::<span class="built_in">make_address</span>(<span class="string">&quot;192.168.1.1&quot;</span>), <span class="number">80</span>),</span><br><span class="line">                asio::use_awaitable</span><br><span class="line">            ) ||</span><br><span class="line">            (timer.<span class="built_in">async_wait</span>(asio::use_awaitable),</span><br><span class="line">                <span class="keyword">throw</span> std::<span class="built_in">runtime_error</span>(<span class="string">&quot;连接超时&quot;</span>))</span><br><span class="line">        );</span><br><span class="line">    &#125; <span class="built_in">catch</span> (<span class="type">const</span> std::exception&amp; e) &#123;</span><br><span class="line">        std::cerr &lt;&lt; <span class="string">&quot;超时: &quot;</span> &lt;&lt; e.<span class="built_in">what</span>() &lt;&lt; <span class="string">&quot;\n&quot;</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
+<h3 id="6-3-SSL-TLS">6.3 SSL/TLS</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;boost/asio/ssl.hpp&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="keyword">namespace</span> ssl = asio::ssl;</span><br><span class="line"></span><br><span class="line"><span class="function">ssl::context <span class="title">ssl_ctx</span><span class="params">(ssl::context::tlsv12_client)</span></span>;</span><br><span class="line">ssl_ctx.<span class="built_in">set_default_verify_paths</span>();</span><br><span class="line">ssl_ctx.<span class="built_in">set_verify_mode</span>(ssl::verify_peer);</span><br><span class="line"></span><br><span class="line"><span class="function">ssl::stream&lt;tcp::socket&gt; <span class="title">ssl_socket</span><span class="params">(ctx, ssl_ctx)</span></span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 异步 SSL 握手</span></span><br><span class="line">ssl_socket.<span class="built_in">async_handshake</span>(ssl::stream_base::client,</span><br><span class="line">    [](std::error_code ec) &#123;</span><br><span class="line">        <span class="keyword">if</span> (!ec)</span><br><span class="line">            std::cout &lt;&lt; <span class="string">&quot;SSL 握手成功\n&quot;</span>;</span><br><span class="line">    &#125;);</span><br></pre></td></tr></table></figure></div>
+<h2 id="七、调试与错误处理">七、调试与错误处理</h2>
+<h3 id="7-1-错误码">7.1 错误码</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">void</span> <span class="title">handle_connect</span><span class="params">(std::error_code ec)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">switch</span> (ec.<span class="built_in">value</span>()) &#123;</span><br><span class="line">    <span class="keyword">case</span> <span class="number">0</span>:</span><br><span class="line">        std::cout &lt;&lt; <span class="string">&quot;连接成功\n&quot;</span>;</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">    <span class="keyword">case</span> asio::error::connection_refused:</span><br><span class="line">        std::cerr &lt;&lt; <span class="string">&quot;连接被拒绝\n&quot;</span>;</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">    <span class="keyword">case</span> asio::error::connection_reset:</span><br><span class="line">        std::cerr &lt;&lt; <span class="string">&quot;连接重置\n&quot;</span>;</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">    <span class="keyword">case</span> asio::error::timed_out:</span><br><span class="line">        std::cerr &lt;&lt; <span class="string">&quot;连接超时\n&quot;</span>;</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">    <span class="keyword">default</span>:</span><br><span class="line">        std::cerr &lt;&lt; <span class="string">&quot;未知错误: &quot;</span> &lt;&lt; ec.<span class="built_in">message</span>() &lt;&lt; <span class="string">&quot;\n&quot;</span>;</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></div>
+<h3 id="7-2-日志跟踪">7.2 日志跟踪</h3>
+<div class="code-container" data-rel="Cpp"><figure class="iseeu highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 定义跟踪 handler</span></span><br><span class="line"><span class="keyword">template</span> &lt;<span class="keyword">typename</span> F&gt;</span><br><span class="line"><span class="function"><span class="keyword">auto</span> <span class="title">traced</span><span class="params">(F f)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> [f = std::<span class="built_in">move</span>(f)](<span class="keyword">auto</span>... args) &#123;</span><br><span class="line">        std::cout &lt;&lt; <span class="string">&quot;&gt;&gt; handler 调用\n&quot;</span>;</span><br><span class="line">        <span class="built_in">f</span>(args...);</span><br><span class="line">        std::cout &lt;&lt; <span class="string">&quot;&lt;&lt; handler 返回\n&quot;</span>;</span><br><span class="line">    &#125;;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 使用</span></span><br><span class="line">socket.<span class="built_in">async_connect</span>(endpoint, <span class="built_in">traced</span>([](<span class="keyword">auto</span> ec) &#123;</span><br><span class="line">    <span class="keyword">if</span> (!ec) std::cout &lt;&lt; <span class="string">&quot;已连接\n&quot;</span>;</span><br><span class="line">&#125;));</span><br></pre></td></tr></table></figure></div>
+<h2 id="八、性能建议">八、性能建议</h2>
+<ol>
+<li><strong>使用 <code>io_context::run()</code> 多线程</strong>：<code>n</code> 个线程通常可获得接近 <code>n</code> 倍的吞吐量</li>
+<li><strong>减少内存分配</strong>：复用 <code>buffer</code>，使用 <code>bind_executor</code> 避免 lambda 捕获</li>
+<li><strong>避免 blocking 操作</strong>：不要在 handler 中执行阻塞 I/O</li>
+<li><strong>选择合适的 buffer 策略</strong>：</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">策略</th>
+<th style="text-align:left">适用场景</th>
+<th style="text-align:left">特点</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>asio::buffer(string)</code></td>
+<td style="text-align:left">小数据</td>
+<td style="text-align:left">简单直接</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>asio::dynamic_buffer</code></td>
+<td style="text-align:left">变长消息</td>
+<td style="text-align:left">自动扩容</td>
+</tr>
+<tr>
+<td style="text-align:left">内存池</td>
+<td style="text-align:left">高频小包</td>
+<td style="text-align:left">零分配</td>
+</tr>
+</tbody>
+</table>
+<h2 id="九、总结">九、总结</h2>
+<p>Boost.Asio 1.83 在 C++20 协程支持、执行器模型方面做了重要改进。以下是最常用的 API：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">API</th>
+<th style="text-align:left">用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>post()</code> / <code>defer()</code> / <code>dispatch()</code></td>
+<td style="text-align:left">任务投递</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>steady_timer::async_wait()</code></td>
+<td style="text-align:left">异步定时</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>ip::tcp::socket::async_read_some()</code></td>
+<td style="text-align:left">TCP 读取</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>async_write()</code></td>
+<td style="text-align:left">异步写入</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>co_spawn()</code></td>
+<td style="text-align:left">启动协程</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>make_strand()</code></td>
+<td style="text-align:left">创建串行执行器</td>
+</tr>
+</tbody>
+</table>
+<p>选择合适的异步模型（回调节点 vs. 协程）可以显著降低代码复杂度。</p>
+
+		</div>
+
+		
+
+		
+		<ul class="post-tags-box text-lg mt-1.5 flex-wrap justify-center flex md:hidden">
+			
+			<li class="tag-item mx-0.5">
+				<a href="/tags/Boost/">#Boost</a>&nbsp;
+			</li>
+			
+			<li class="tag-item mx-0.5">
+				<a href="/tags/Asio/">#Asio</a>&nbsp;
+			</li>
+			
+			<li class="tag-item mx-0.5">
+				<a href="/tags/%E7%BD%91%E7%BB%9C%E7%BC%96%E7%A8%8B/">#网络编程</a>&nbsp;
+			</li>
+			
+			<li class="tag-item mx-0.5">
+				<a href="/tags/C/">#C++</a>&nbsp;
+			</li>
+			
+		</ul>
+		
+
+		
+
+		
+		<div class="article-nav my-8 flex justify-between items-center px-2 sm:px-6 md:px-8">
+			
+			
+			<div class="article-next border-border-color shadow-redefine-flat shadow-shadow-color-2 rounded-medium px-4 py-2 hover:shadow-redefine-flat-hover hover:shadow-shadow-color-2">
+				<a class="next" rel="next" href="/2026/06/14/Markdown%E6%B5%8B%E8%AF%95/">
+					<span class="title flex justify-center items-center">
+						<span class="post-nav-title-item truncate max-w-48">Markdown 渲染功能测试</span>
+						<span class="post-nav-item">下一篇</span>
+					</span>
+					<span class="right arrow-icon flex justify-center items-center">
+						<i class="fa-solid fa-chevron-right"></i>
+					</span>
+				</a>
+			</div>
+			
+		</div>
+		
+
+
+		
+	</div>
+
+	
+	<div class="toc-content-container">
+		<div class="post-toc-wrap">
+	<div class="post-toc">
+		<div class="toc-title">目录</div>
+		<div class="page-title">Boost.Asio 1.83 使用指南</div>
+		<ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%80%E3%80%81Boost-Asio-%E7%AE%80%E4%BB%8B"><span class="nav-text">一、Boost.Asio 简介</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-1-%E6%A0%B8%E5%BF%83%E6%A6%82%E5%BF%B5"><span class="nav-text">1.1 核心概念</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#1-2-%E7%BC%96%E8%AF%91%E8%A6%81%E6%B1%82"><span class="nav-text">1.2 编译要求</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BA%8C%E3%80%81io-context-%E4%B8%8E%E4%BA%8B%E4%BB%B6%E5%BE%AA%E7%8E%AF"><span class="nav-text">二、io_context 与事件循环</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#2-1-%E5%9F%BA%E6%9C%AC%E7%94%A8%E6%B3%95"><span class="nav-text">2.1 基本用法</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-2-run-%E4%B8%8E-poll"><span class="nav-text">2.2 run() 与 poll()</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%89%E3%80%81%E5%AE%9A%E6%97%B6%E5%99%A8"><span class="nav-text">三、定时器</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#3-1-%E5%90%8C%E6%AD%A5%E5%AE%9A%E6%97%B6%E5%99%A8"><span class="nav-text">3.1 同步定时器</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-2-%E5%BC%82%E6%AD%A5%E5%AE%9A%E6%97%B6%E5%99%A8"><span class="nav-text">3.2 异步定时器</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-3-C-20-%E5%8D%8F%E7%A8%8B%E5%AE%9A%E6%97%B6%E5%99%A8"><span class="nav-text">3.3 C++20 协程定时器</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%9B%9B%E3%80%81TCP-%E7%BD%91%E7%BB%9C%E7%BC%96%E7%A8%8B"><span class="nav-text">四、TCP 网络编程</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#4-1-TCP-%E6%9C%8D%E5%8A%A1%E7%AB%AF"><span class="nav-text">4.1 TCP 服务端</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-2-TCP-%E5%AE%A2%E6%88%B7%E7%AB%AF"><span class="nav-text">4.2 TCP 客户端</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BA%94%E3%80%81UDP-%E7%BC%96%E7%A8%8B"><span class="nav-text">五、UDP 编程</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#5-1-UDP-%E6%9C%8D%E5%8A%A1%E7%AB%AF"><span class="nav-text">5.1 UDP 服务端</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%85%AD%E3%80%81%E9%AB%98%E7%BA%A7%E7%89%B9%E6%80%A7"><span class="nav-text">六、高级特性</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#6-1-Strand-%E4%B8%B2%E8%A1%8C%E5%8C%96"><span class="nav-text">6.1 Strand 串行化</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#6-2-%E5%8D%8F%E7%A8%8B%E8%B6%85%E6%97%B6"><span class="nav-text">6.2 协程超时</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#6-3-SSL-TLS"><span class="nav-text">6.3 SSL&#x2F;TLS</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%83%E3%80%81%E8%B0%83%E8%AF%95%E4%B8%8E%E9%94%99%E8%AF%AF%E5%A4%84%E7%90%86"><span class="nav-text">七、调试与错误处理</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#7-1-%E9%94%99%E8%AF%AF%E7%A0%81"><span class="nav-text">7.1 错误码</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#7-2-%E6%97%A5%E5%BF%97%E8%B7%9F%E8%B8%AA"><span class="nav-text">7.2 日志跟踪</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%85%AB%E3%80%81%E6%80%A7%E8%83%BD%E5%BB%BA%E8%AE%AE"><span class="nav-text">八、性能建议</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B9%9D%E3%80%81%E6%80%BB%E7%BB%93"><span class="nav-text">九、总结</span></a></li></ol>
+
+	</div>
+</div>
+	</div>
+	
+</div>
+			</div>
+
+			
+		</div>
+
+		<div class="main-content-footer">
+			<footer class="footer mt-5 py-5 h-auto text-base text-third-text-color relative border-t-2 border-t-border-color">
+    <div class="info-container py-3 text-center">
+        
+            <div class="customize-info my-1">你说的对，但是《原神》是由米哈游自主研发的一款全新开放世界冒险游戏。</div>
+        
+        <div class="text-center">
+            &copy;
+            
+              <span>2025</span>
+              -
+            
+            2026&nbsp;&nbsp;<i class="fa-solid fa-heart fa-beat" style="--fa-animation-duration: 0.5s; color: #f54545"></i>&nbsp;&nbsp;<a href="/">江边小余</a>
+            
+                
+                <p class="post-count space-x-0.5">
+                    <span>
+                        共撰写了 4 篇文章
+                    </span>
+                    
+                        <span>
+                            共 6.8k 字
+                        </span>
+                    
+                </p>
+            
+        </div>
+        
+            <script data-swup-reload-script src="https://cn.vercount.one/js"></script>
+            <div class="relative text-center lg:absolute lg:right-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-right">
+                
+                    <span id="busuanzi_container_site_uv" class="lg:!block">
+                        <span class="text-sm">访问人数</span>
+                        <span id="busuanzi_value_site_uv"></span>
+                    </span>
+                
+                
+                    <span id="busuanzi_container_site_pv" class="lg:!block">
+                        <span class="text-sm">总访问量</span>
+                        <span id="busuanzi_value_site_pv"></span>
+                    </span>
+                
+            </div>
+        
+        <div class="relative text-center lg:absolute lg:left-[20px] lg:top-1/2 lg:-translate-y-1/2 lg:text-left">
+            <span class="lg:block text-sm">由 <?xml version="1.0" encoding="utf-8"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg class="relative top-[2px] inline-block align-baseline" version="1.1" id="圖層_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="1rem" height="1rem" viewBox="0 0 512 512" enable-background="new 0 0 512 512" xml:space="preserve"><path fill="#0E83CD" d="M256.4,25.8l-200,115.5L56,371.5l199.6,114.7l200-115.5l0.4-230.2L256.4,25.8z M349,354.6l-18.4,10.7l-18.6-11V275H200v79.6l-18.4,10.7l-18.6-11v-197l18.5-10.6l18.5,10.8V237h112v-79.6l18.5-10.6l18.5,10.8V354.6z"/></svg><a target="_blank" class="text-base" href="https://hexo.io">Hexo</a> 驱动</span>
+            <span class="text-sm lg:block">主题&nbsp;<a class="text-base" target="_blank" href="https://github.com/EvanNotFound/hexo-theme-redefine">Redefine v2.8.5</a></span>
+        </div>
+        
+        
+            <div>
+                博客已运行 <span class="odometer" id="runtime_days" ></span> 天 <span class="odometer" id="runtime_hours"></span> 小时 <span class="odometer" id="runtime_minutes"></span> 分钟 <span class="odometer" id="runtime_seconds"></span> 秒
+            </div>
+        
+        
+            <script data-swup-reload-script>
+                try {
+                    function odometer_init() {
+                    const elements = document.querySelectorAll('.odometer');
+                    elements.forEach(el => {
+                        new Odometer({
+                            el,
+                            format: '( ddd).dd',
+                            duration: 200
+                        });
+                    });
+                    }
+                    odometer_init();
+                } catch (error) {}
+            </script>
+        
+        
+            
+        
+    </div>  
+</footer>
+		</div>
+	</div>
+
+	
+	<div class="post-tools">
+		<div class="post-tools-container">
+	<ul class="article-tools-list">
+		<!-- TOC aside toggle -->
+		
+		<li class="right-bottom-tools page-aside-toggle">
+			<i class="fa-regular fa-outdent"></i>
+		</li>
+		
+
+		<!-- go comment -->
+		
+	</ul>
+</div>
+	</div>
+	
+
+	<div class="right-side-tools-container">
+		<div class="side-tools-container">
+	<ul class="hidden-tools-list">
+		<li class="right-bottom-tools tool-font-adjust-plus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-plus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-font-adjust-minus flex justify-center items-center">
+			<i class="fa-regular fa-magnifying-glass-minus"></i>
+		</li>
+
+		<li class="right-bottom-tools tool-dark-light-toggle flex justify-center items-center">
+			<i class="fa-regular fa-moon"></i>
+		</li>
+
+		<!-- rss -->
+		
+
+		
+
+		<li class="right-bottom-tools tool-scroll-to-bottom flex justify-center items-center">
+			<i class="fa-regular fa-arrow-down"></i>
+		</li>
+	</ul>
+
+	<ul class="visible-tools-list">
+		<li class="right-bottom-tools toggle-tools-list flex justify-center items-center">
+			<i class="fa-regular fa-cog fa-spin"></i>
+		</li>
+		
+		<li class="right-bottom-tools tool-scroll-to-top flex justify-center items-center">
+			<i class="arrow-up fas fa-arrow-up"></i>
+			<span class="percent"></span>
+		</li>
+		
+		
+	</ul>
+</div>
+	</div>
+
+	<div class="image-viewer-container">
+	<img src="">
+</div>
+
+	
+	<div class="search-pop-overlay">
+	<div class="popup search-popup">
+		<div class="search-header">
+			<span class="search-input-field-pre">
+				<i class="fa-solid fa-keyboard"></i>
+			</span>
+			<div class="search-input-container">
+				<input autocomplete="off" autocorrect="off" autocapitalize="off" placeholder="站内搜索您需要的内容..." spellcheck="false" type="search" class="search-input">
+			</div>
+			<span class="popup-btn-close">
+				<i class="fa-solid fa-times"></i>
+			</span>
+		</div>
+		<div id="search-result">
+			<div id="no-result">
+				<i class="fa-solid fa-spinner fa-spin-pulse fa-5x fa-fw"></i>
+			</div>
+		</div>
+	</div>
+</div>
+	
+
+</main>
+
+
+
+<script src="/js/build/libs/Swup.min.js"></script>
+
+<script src="/js/build/libs/SwupSlideTheme.min.js"></script>
+
+<script src="/js/build/libs/SwupScriptsPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupProgressPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupScrollPlugin.min.js"></script>
+
+<script src="/js/build/libs/SwupPreloadPlugin.min.js"></script>
+
+<script>
+    const swup = new Swup({
+        plugins: [
+            new SwupScriptsPlugin({
+                optin: true,
+            }),
+            new SwupProgressPlugin(),
+            new SwupScrollPlugin({
+                offset: 80,
+            }),
+            new SwupSlideTheme({
+                mainElement: ".main-content-body",
+            }),
+            new SwupPreloadPlugin(),
+        ],
+        containers: ["#swup"],
+    });
+</script>
+
+
+
+
+	
+<script src="/js/build/tools/imageViewer.js" type="module"></script>
+
+<script src="/js/build/utils.js" type="module"></script>
+
+<script src="/js/build/main.js" type="module"></script>
+
+<script src="/js/build/layouts/navbarShrink.js" type="module"></script>
+
+<script src="/js/build/tools/scrollTopBottom.js" type="module"></script>
+
+<script src="/js/build/tools/lightDarkSwitch.js" type="module"></script>
+
+<script src="/js/build/layouts/categoryList.js" type="module"></script>
+
+
+
+    
+<script src="/js/build/tools/localSearch.js" type="module"></script>
+
+
+
+
+    
+<script src="/js/build/tools/codeBlock.js" type="module"></script>
+
+
+
+
+
+
+    
+<script src="/js/build/tools/runtime.js"></script>
+
+    
+<script src="/js/build/libs/odometer.min.js"></script>
+
+    
+<link rel="stylesheet" href="/assets/odometer-theme-minimal.css">
+
+
+
+
+  
+<script src="/js/build/libs/Typed.min.js"></script>
+
+  
+<script src="/js/build/plugins/typed.js" type="module"></script>
+
+
+
+
+
+
+    
+<script src="/js/build/libs/minimasonry.min.js"></script>
+
+    
+<script src="/js/build/plugins/masonry.js" type="module"></script>
+
+
+
+
+
+
+
+    
+<script src="/js/build/tools/tocToggle.js" type="module" data-swup-reload-script=""></script>
+
+<script src="/js/build/layouts/toc.js" type="module" data-swup-reload-script=""></script>
+
+<script src="/js/build/plugins/tabs.js" type="module" data-swup-reload-script=""></script>
+
+
+
+
+<script src="/js/build/libs/moment-with-locales.min.js" data-swup-reload-script=""></script>
+
+
+<script src="/js/build/layouts/essays.js" type="module" data-swup-reload-script=""></script>
+
+
+
+
+
+	
+</body>
+
+</html>
