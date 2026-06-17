@@ -2,6 +2,15 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   
   <url>
+    <loc>https://jiangbianxiaoy.github.io/2026/06/17/BoostAsio%E7%BD%91%E7%BB%9C%E7%BC%96%E7%A8%8B/</loc>
+    
+    <lastmod>2026-06-17</lastmod>
+    
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
     <loc>https://jiangbianxiaoy.github.io/2026/06/16/BoostAsio%E6%8C%87%E5%8D%97/</loc>
     
     <lastmod>2026-06-16</lastmod>
@@ -87,6 +96,34 @@
   
   <url>
     <loc>https://jiangbianxiaoy.github.io/tags/C/</loc>
+    <lastmod>2026-06-17</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://jiangbianxiaoy.github.io/tags/%E4%BC%9A%E8%AF%9D%E5%B1%82/</loc>
+    <lastmod>2026-06-17</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://jiangbianxiaoy.github.io/tags/%E8%BF%9E%E6%8E%A5%E6%B1%A0/</loc>
+    <lastmod>2026-06-17</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://jiangbianxiaoy.github.io/tags/TCP/</loc>
+    <lastmod>2026-06-17</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://jiangbianxiaoy.github.io/tags/UDP/</loc>
     <lastmod>2026-06-17</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
