@@ -103,6 +103,8 @@ aof-use-rdb-preamble yes
 
 方案 1：缓存空值
 
+{% tabs cache_null, 1 %}
+<!-- tab Go -->
 ```go
 func GetUser(rdb *redis.Client, userID int) (*User, error) {
     ctx := context.Background()
@@ -131,7 +133,8 @@ func GetUser(rdb *redis.Client, userID int) (*User, error) {
     return u, nil
 }
 ```
-
+<!-- endtab -->
+<!-- tab C++ -->
 ```cpp
 #include <sw/redis++/redis++.h>
 using namespace sw::redis;
@@ -152,9 +155,13 @@ std::optional<User> GetUser(Redis& rdb, int user_id) {
     return u;
 }
 ```
+<!-- endtab -->
+{% endtabs %}
 
 方案 2：布隆过滤器
 
+{% tabs bloom, 1 %}
+<!-- tab Go -->
 ```go
 type BloomFilter struct {
     rdb       *redis.Client
@@ -187,7 +194,8 @@ func (bf *BloomFilter) MightContain(item string) bool {
     return true
 }
 ```
-
+<!-- endtab -->
+<!-- tab C++ -->
 ```cpp
 class BloomFilter {
     Redis& rdb_;
@@ -217,6 +225,8 @@ public:
     }
 };
 ```
+<!-- endtab -->
+{% endtabs %}
 
 ### 3.2 击穿
 
@@ -224,6 +234,8 @@ public:
 
 方案 1：互斥锁
 
+{% tabs mutex_lock, 1 %}
+<!-- tab Go -->
 ```go
 func GetHotData(rdb *redis.Client, key string) (string, error) {
     ctx := context.Background()
@@ -252,7 +264,8 @@ func GetHotData(rdb *redis.Client, key string) (string, error) {
     return GetHotData(rdb, key)
 }
 ```
-
+<!-- endtab -->
+<!-- tab C++ -->
 ```cpp
 std::string GetHotData(Redis& rdb, const std::string& key) {
     auto data = rdb.get(key);
@@ -277,19 +290,24 @@ std::string GetHotData(Redis& rdb, const std::string& key) {
     return GetHotData(rdb, key);
 }
 ```
+<!-- endtab -->
+{% endtabs %}
 
 方案 2：逻辑过期
 
+{% tabs logic_expire, 1 %}
+<!-- tab Go -->
 ```go
 func GetHotDataLogic(rdb *redis.Client, key string) (string, error) {
-    data, err := rdb.Get(context.Background(), key).Result()
+    ctx := context.Background()
+    data, err := rdb.Get(ctx, key).Result()
     if err != nil {
         return "", nil
     }
     val, expireAt := parseData(data)
     if time.Now().Unix() > expireAt-600 {
         lockKey := "rebuild:" + key
-        ok, _ := rdb.SetNX(context.Background(), lockKey, "1", 60*time.Second).Result()
+        ok, _ := rdb.SetNX(ctx, lockKey, "1", 60*time.Second).Result()
         if ok {
             go rebuildHotData(rdb, key)
         }
@@ -300,11 +318,12 @@ func GetHotDataLogic(rdb *redis.Client, key string) (string, error) {
 func rebuildHotData(rdb *redis.Client, key string) {
     newData := db.QueryExpensive(key)
     serialized := serializeWithExpire(newData, time.Now().Add(3600*time.Second).Unix())
-    rdb.SetEx(context.Background(), key, serialized, 7200*time.Second)
-    rdb.Del(context.Background(), "rebuild:"+key)
+    rdb.SetEx(ctx, key, serialized, 7200*time.Second)
+    rdb.Del(ctx, "rebuild:"+key)
 }
 ```
-
+<!-- endtab -->
+<!-- tab C++ -->
 ```cpp
 std::string GetHotDataLogic(Redis& rdb, const std::string& key) {
     auto data = rdb.get(key);
@@ -326,18 +345,21 @@ std::string GetHotDataLogic(Redis& rdb, const std::string& key) {
     return val;
 }
 ```
+<!-- endtab -->
+{% endtabs %}
 
 ### 3.3 雪崩
 
 问题：大量 key 同时过期或 Redis 宕机
 
+{% tabs avalanche, 1 %}
+<!-- tab Go -->
 ```go
 func SetCache(rdb *redis.Client, key, value string, baseTTL time.Duration) {
     jitter := time.Duration(rand.Intn(540)+60) * time.Second
     rdb.SetEx(context.Background(), key, value, baseTTL+jitter)
 }
 
-// 多级缓存
 var localCache = make(map[string]cacheEntry)
 var localMu sync.RWMutex
 
@@ -368,7 +390,8 @@ func GetData(rdb *redis.Client, key string) (string, error) {
     return data, nil
 }
 ```
-
+<!-- endtab -->
+<!-- tab C++ -->
 ```cpp
 void SetCache(Redis& rdb, const std::string& key,
               const std::string& value, int base_ttl) {
@@ -378,19 +401,20 @@ void SetCache(Redis& rdb, const std::string& key,
 }
 
 std::string GetData(Redis& rdb, const std::string& key) {
-    // L1: local cache (omitted for brevity, use mutex + unordered_map)
+    // L1: local cache (use mutex + unordered_map)
     // L2: redis
     auto data = rdb.get(key);
     if (data) return *data;
     // L3: db
     auto val = Db::Query(key);
-    // random TTL
     static std::mt19937 rng(std::random_device{}());
     std::uniform_int_distribution<> dist(300, 3600);
     rdb.setex(key, dist(rng), val);
     return val;
 }
 ```
+<!-- endtab -->
+{% endtabs %}
 
 ### 3.4 对比
 
@@ -404,6 +428,8 @@ std::string GetData(Redis& rdb, const std::string& key) {
 
 ### 4.1 SETNX + Lua
 
+{% tabs dist_lock, 1 %}
+<!-- tab Go -->
 ```go
 type RedisLock struct {
     rdb       *redis.Client
@@ -449,7 +475,8 @@ func (l *RedisLock) Release(ctx context.Context) {
     l.acquired = false
 }
 ```
-
+<!-- endtab -->
+<!-- tab C++ -->
 ```cpp
 class RedisLock {
     Redis& rdb_;
@@ -491,9 +518,13 @@ public:
     ~RedisLock() { Release(); }
 };
 ```
+<!-- endtab -->
+{% endtabs %}
 
 ### 4.2 Redlock
 
+{% tabs redlock, 1 %}
+<!-- tab Go -->
 ```go
 type Redlock struct {
     nodes   []*redis.Client
@@ -525,7 +556,8 @@ func (r *Redlock) Acquire(ctx context.Context) bool {
     return acquired >= r.quorum && time.Since(start) < r.ttl
 }
 ```
-
+<!-- endtab -->
+<!-- tab C++ -->
 ```cpp
 class Redlock {
     std::vector<Redis*> nodes_;
@@ -555,6 +587,8 @@ public:
     }
 };
 ```
+<!-- endtab -->
+{% endtabs %}
 
 ### 4.3 Redis vs ZooKeeper
 
@@ -569,6 +603,8 @@ public:
 
 ### 5.1 固定窗口
 
+{% tabs fixed_window, 1 %}
+<!-- tab Go -->
 ```go
 func FixedWindowLimit(rdb *redis.Client, userID string, limit int) bool {
     ctx := context.Background()
@@ -580,7 +616,8 @@ func FixedWindowLimit(rdb *redis.Client, userID string, limit int) bool {
     return count <= int64(limit)
 }
 ```
-
+<!-- endtab -->
+<!-- tab C++ -->
 ```cpp
 bool FixedWindowLimit(Redis& rdb, const std::string& user_id, int limit) {
     auto key = "ratelimit:" + user_id + ":" + std::to_string(time(nullptr));
@@ -591,9 +628,13 @@ bool FixedWindowLimit(Redis& rdb, const std::string& user_id, int limit) {
     return count <= limit;
 }
 ```
+<!-- endtab -->
+{% endtabs %}
 
 ### 5.2 滑动窗口（ZSET）
 
+{% tabs sliding_window, 1 %}
+<!-- tab Go -->
 ```go
 func SlidingWindowLimit(rdb *redis.Client, userID string, limit int, window time.Duration) bool {
     ctx := context.Background()
@@ -609,7 +650,8 @@ func SlidingWindowLimit(rdb *redis.Client, userID string, limit int, window time
     return count <= int64(limit)
 }
 ```
-
+<!-- endtab -->
+<!-- tab C++ -->
 ```cpp
 bool SlidingWindowLimit(Redis& rdb, const std::string& user_id, int limit, int window_sec) {
     auto key = "ratelimit:" + user_id;
@@ -623,6 +665,8 @@ bool SlidingWindowLimit(Redis& rdb, const std::string& user_id, int limit, int w
     return rdb.zcard(key) <= static_cast<size_t>(limit);
 }
 ```
+<!-- endtab -->
+{% endtabs %}
 
 ### 5.3 令牌桶（Lua）
 
@@ -646,6 +690,8 @@ else
 end
 ```
 
+{% tabs token_bucket, 1 %}
+<!-- tab Go -->
 ```go
 func TokenBucketLimit(rdb *redis.Client, userID string, capacity, rate int) bool {
     script := redis.NewScript(`
@@ -670,7 +716,8 @@ func TokenBucketLimit(rdb *redis.Client, userID string, capacity, rate int) bool
     return result == int64(1)
 }
 ```
-
+<!-- endtab -->
+<!-- tab C++ -->
 ```cpp
 bool TokenBucketLimit(Redis& rdb, const std::string& user_id, int capacity, int rate) {
     auto key = "tb:" + user_id;
@@ -698,6 +745,8 @@ bool TokenBucketLimit(Redis& rdb, const std::string& user_id, int capacity, int 
     } catch (...) { return false; }
 }
 ```
+<!-- endtab -->
+{% endtabs %}
 
 ### 5.4 限流算法对比
 
@@ -712,6 +761,8 @@ bool TokenBucketLimit(Redis& rdb, const std::string& user_id, int capacity, int 
 
 ### 6.1 Stream
 
+{% tabs stream, 1 %}
+<!-- tab Go -->
 ```go
 func Produce(rdb *redis.Client, stream string, data map[string]interface{}) (string, error) {
     return rdb.XAdd(context.Background(), &redis.XAddArgs{
@@ -751,7 +802,8 @@ func Consume(rdb *redis.Client, stream, group, consumer string) {
     }
 }
 ```
-
+<!-- endtab -->
+<!-- tab C++ -->
 ```cpp
 std::string Produce(Redis& rdb, const std::string& stream,
                     const std::unordered_map<std::string, std::string>& data) {
@@ -778,9 +830,13 @@ void Consume(Redis& rdb, const std::string& stream,
     }
 }
 ```
+<!-- endtab -->
+{% endtabs %}
 
 ### 6.2 延迟队列（ZSET）
 
+{% tabs delay_queue, 1 %}
+<!-- tab Go -->
 ```go
 func EnqueueDelay(rdb *redis.Client, queueKey string, data interface{}, delay time.Duration) {
     b, _ := json.Marshal(data)
@@ -810,7 +866,8 @@ func ProcessDelayQueue(rdb *redis.Client, queueKey string) {
     }
 }
 ```
-
+<!-- endtab -->
+<!-- tab C++ -->
 ```cpp
 void EnqueueDelay(Redis& rdb, const std::string& queue_key,
                   const std::string& data, int delay_sec) {
@@ -839,6 +896,8 @@ void ProcessDelayQueue(Redis& rdb, const std::string& queue_key) {
     }
 }
 ```
+<!-- endtab -->
+{% endtabs %}
 
 ### 6.3 Stream vs Kafka vs RabbitMQ
 
@@ -853,6 +912,8 @@ void ProcessDelayQueue(Redis& rdb, const std::string& queue_key) {
 
 ### 7.1 秒杀系统
 
+{% tabs seckill, 1 %}
+<!-- tab Go -->
 ```go
 func Seckill(rdb *redis.Client, userID, productID string) string {
     ctx := context.Background()
@@ -879,7 +940,8 @@ func Seckill(rdb *redis.Client, userID, productID string) string {
     return "抢购成功"
 }
 ```
-
+<!-- endtab -->
+<!-- tab C++ -->
 ```cpp
 std::string Seckill(Redis& rdb, const std::string& user_id,
                     const std::string& product_id) {
@@ -901,9 +963,13 @@ std::string Seckill(Redis& rdb, const std::string& user_id,
     return "抢购成功";
 }
 ```
+<!-- endtab -->
+{% endtabs %}
 
 ### 7.2 UV 统计（HyperLogLog）
 
+{% tabs hyperloglog, 1 %}
+<!-- tab Go -->
 ```go
 func RecordUV(rdb *redis.Client, pageID, userID string) {
     key := fmt.Sprintf("uv:%s:%s", pageID, time.Now().Format("2006-01-02"))
@@ -926,7 +992,8 @@ func GetMonthlyUV(rdb *redis.Client, pageID string, year, month int) int64 {
     return count
 }
 ```
-
+<!-- endtab -->
+<!-- tab C++ -->
 ```cpp
 void RecordUV(Redis& rdb, const std::string& page_id, const std::string& user_id) {
     auto key = "uv:" + page_id + ":" + CurrentDateStr();
@@ -948,9 +1015,13 @@ int64_t GetMonthlyUV(Redis& rdb, const std::string& page_id, int year, int month
     return rdb.pfcount(keys.begin(), keys.end());
 }
 ```
+<!-- endtab -->
+{% endtabs %}
 
 ### 7.3 附近的人（GEO）
 
+{% tabs geo, 1 %}
+<!-- tab Go -->
 ```go
 func SetLocation(rdb *redis.Client, userID string, longitude, latitude float64) {
     rdb.GeoAdd(context.Background(), "user_locations", &redis.GeoLocation{
@@ -987,7 +1058,8 @@ func FindNearby(rdb *redis.Client, userID string, radius float64) []NearbyUser {
     return nearby
 }
 ```
-
+<!-- endtab -->
+<!-- tab C++ -->
 ```cpp
 void SetLocation(Redis& rdb, const std::string& user_id,
                  double longitude, double latitude) {
@@ -1006,9 +1078,13 @@ std::vector<NearbyUser> FindNearby(Redis& rdb, const std::string& user_id, doubl
     return nearby;
 }
 ```
+<!-- endtab -->
+{% endtabs %}
 
 ### 7.4 排行榜（ZSET）
 
+{% tabs leaderboard, 1 %}
+<!-- tab Go -->
 ```go
 func UpdateScore(rdb *redis.Client, playerID string, delta float64) {
     rdb.ZIncrBy(context.Background(), "leaderboard", delta, playerID)
@@ -1024,7 +1100,8 @@ func GetRank(rdb *redis.Client, playerID string) int {
     return int(rank) + 1
 }
 ```
-
+<!-- endtab -->
+<!-- tab C++ -->
 ```cpp
 void UpdateScore(Redis& rdb, const std::string& player_id, double delta) {
     rdb.zincrby("leaderboard", delta, player_id);
@@ -1039,9 +1116,13 @@ int64_t GetRank(Redis& rdb, const std::string& player_id) {
     return rank ? *rank + 1 : -1;
 }
 ```
+<!-- endtab -->
+{% endtabs %}
 
 ### 7.5 分布式 Session
 
+{% tabs session, 1 %}
+<!-- tab Go -->
 ```go
 import (
     "github.com/gin-gonic/gin"
@@ -1052,7 +1133,7 @@ import (
 func main() {
     store, _ := redis.NewStore(10, "tcp", "redis.example.com:6379", "", []byte("secret-key"))
     store.Options(sessions.Options{
-        MaxAge: 86400, // 24 hours
+        MaxAge: 86400,
     })
 
     r := gin.Default()
@@ -1075,53 +1156,58 @@ func main() {
         }
         c.String(200, "User: %d", userID)
     })
+
+    r.Run(":8080")
 }
 ```
-
+<!-- endtab -->
+<!-- tab C++ -->
 ```cpp
-// Using cpp_redis for session storage. In practice, integrate with your HTTP framework.
-// Example using crow + cpp_redis:
+// Using crow + redis++ for session management
 #include <crow.h>
 #include <sw/redis++/redis++.h>
 
 class SessionManager {
-    Redis& rdb_;
+    sw::redis::Redis& rdb_;
 public:
-    SessionManager(Redis& rdb) : rdb_(rdb) {}
+    SessionManager(sw::redis::Redis& rdb) : rdb_(rdb) {}
 
-    void SetSession(const std::string& session_id,
-                    const std::string& key, const std::string& value) {
-        rdb_.hset("session:" + session_id, key, value);
-        rdb_.expire("session:" + session_id, std::chrono::seconds(86400));
+    void SetSession(const std::string& sid,
+                    const std::string& key, const std::string& val) {
+        rdb_.hset("session:" + sid, key, val);
+        rdb_.expire("session:" + sid, std::chrono::seconds(86400));
     }
 
-    std::string GetSession(const std::string& session_id,
-                           const std::string& key) {
-        auto val = rdb_.hget("session:" + session_id, key);
+    std::string GetSession(const std::string& sid, const std::string& key) {
+        auto val = rdb_.hget("session:" + sid, key);
         return val ? *val : "";
     }
 };
 
 int main() {
-    Redis rdb("tcp://redis.example.com:6379");
+    sw::redis::Redis rdb("tcp://redis.example.com:6379");
     SessionManager sm(rdb);
 
     crow::SimpleApp app;
     CROW_ROUTE(app, "/login").methods("POST"_method)
     ([&](const crow::request& req) {
-        auto session_id = UUID::Generate();
-        sm.SetSession(session_id, "user_id", "123");
+        auto sid = "sess_" + std::to_string(time(nullptr));
+        sm.SetSession(sid, "user_id", "123");
         crow::response res("OK");
-        res.set_header("Set-Cookie", "session_id=" + session_id);
+        res.set_header("Set-Cookie", "session_id=" + sid);
         return res;
     });
 
     app.port(8080).multithreaded().run();
 }
 ```
+<!-- endtab -->
+{% endtabs %}
 
 ### 7.6 接口幂等性
 
+{% tabs idempotent, 1 %}
+<!-- tab Go -->
 ```go
 func IdempotentHandler(rdb *redis.Client, c *gin.Context) {
     key := c.GetHeader("Idempotent-Key")
@@ -1143,20 +1229,21 @@ func IdempotentHandler(rdb *redis.Client, c *gin.Context) {
     c.JSON(200, gin.H{"result": result})
 }
 ```
-
+<!-- endtab -->
+<!-- tab C++ -->
 ```cpp
-void IdempotentHandler(Redis& rdb, const HttpRequest& req, HttpResponse& res) {
-    auto idempotent_key = req.Header("Idempotent-Key");
-    if (idempotent_key.empty()) {
+void IdempotentHandler(sw::redis::Redis& rdb, const HttpRequest& req, HttpResponse& res) {
+    auto key = req.Header("Idempotent-Key");
+    if (key.empty()) {
         res.Status(400).Json({{"error", "缺少幂等键"}});
         return;
     }
 
-    auto lock_key = "idempotent:" + idempotent_key;
-    auto result_key = "idempotent_result:" + idempotent_key;
+    auto lock_key = "idempotent:" + key;
+    auto result_key = "idempotent_result:" + key;
 
     if (rdb.set(lock_key, "processed",
-                std::chrono::seconds(86400), UpdateType::NOT_EXIST)) {
+                std::chrono::seconds(86400), sw::redis::UpdateType::NOT_EXIST)) {
         auto result = ProcessPayment(req);
         rdb.setex(result_key, 86400, result);
         res.Json({{"result", result}});
@@ -1166,6 +1253,8 @@ void IdempotentHandler(Redis& rdb, const HttpRequest& req, HttpResponse& res) {
     }
 }
 ```
+<!-- endtab -->
+{% endtabs %}
 
 ## 八、生产运维
 
@@ -1230,6 +1319,8 @@ Slave 发起 PSYNC → Master 生成 RDB 并缓存增量命令 → Slave 加载 
 
 ### 9.5 数据一致性
 
+{% tabs cache_aside, 1 %}
+<!-- tab Go -->
 ```go
 // Cache Aside 模式
 func UpdateUser(rdb *redis.Client, u *User) {
@@ -1254,14 +1345,15 @@ func GetUser(rdb *redis.Client, userID int) (*User, error) {
     return u, nil
 }
 ```
-
+<!-- endtab -->
+<!-- tab C++ -->
 ```cpp
-void UpdateUser(Redis& rdb, const User& u) {
+void UpdateUser(sw::redis::Redis& rdb, const User& u) {
     Db::UpdateUser(u);
     rdb.del("user:" + std::to_string(u.id));
 }
 
-std::optional<User> GetUser(Redis& rdb, int user_id) {
+std::optional<User> GetUser(sw::redis::Redis& rdb, int user_id) {
     auto key = "user:" + std::to_string(user_id);
     auto data = rdb.get(key);
     if (data) {
@@ -1274,6 +1366,8 @@ std::optional<User> GetUser(Redis& rdb, int user_id) {
     return u;
 }
 ```
+<!-- endtab -->
+{% endtabs %}
 
 ## 十、总结
 
