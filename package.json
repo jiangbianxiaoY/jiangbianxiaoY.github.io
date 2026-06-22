@@ -5,8 +5,9 @@
   "scripts": {
     "build": "hexo generate",
     "clean": "hexo clean",
-    "deploy": "hexo deploy",
-    "server": "hexo server"
+    "deploy": "npm run build && wrangler deploy",
+    "server": "hexo server",
+    "preview": "npm run build && wrangler dev"
   },
   "hexo": {
     "version": "8.1.2"
@@ -37,5 +38,8 @@
     "markdown-it-sup": "^2.0.0",
     "markdown-it-task-lists": "^2.1.1",
     "markdown-it-texmath": "^1.0.0"
+  },
+  "devDependencies": {
+    "wrangler": "^4.103.0"
   }
 }
