@@ -259,8 +259,7 @@ footer:
 inject:
   enable: true
   head:
-    - <script>MathJax={tex:{inlineMath:[["$","$"],["\\(","\\)"]]},options:{skipHtmlTypes:"script"}};</script>
-    - <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
+    - <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.17.0/dist/katex.min.css" crossorigin="anonymous">
     - <style>.markdown-body > table,.markdown-body .tab-pane > table{border-top:2px solid var(--default-text-color) !important;border-bottom:2px solid var(--default-text-color) !important}.markdown-body > table thead th,.markdown-body .tab-pane > table thead th{border-bottom:2px solid var(--default-text-color) !important}.markdown-body > table td,.markdown-body > table th{border-left:none !important}</style>
   footer:
 
